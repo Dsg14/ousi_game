@@ -130,6 +130,9 @@ wolf_idle_timer = 0
 wolf_timer = 0
 wolf_name = "Wolf"
 wolf_hp = 80
+wolf_max_hp = 100
+wolf_targeted = False
+damage_floats = [] 
 
 # Colisión
 def is_blocking(tile_value):
@@ -175,7 +178,7 @@ def draw_name_and_hp(name, hp, max_hp, x, y):
 running = True
 while running:
     for event in pygame.event.get():
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:  # botón derecho
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
             mouse_x, mouse_y = event.pos
             world_x = mouse_x + offset_x
             world_y = mouse_y + offset_y
@@ -183,8 +186,17 @@ while running:
             wolf_rect = pygame.Rect(wolf_x, wolf_y, TILE_SIZE, TILE_SIZE)
             if wolf_rect.collidepoint(world_x, world_y):
                 wolf_targeted = True
+                damage = random.randint(5, 15)
+                wolf_hp = max(0, wolf_hp - damage)
+                damage_floats.append({
+                    "value": damage,
+                    "x": wolf_x,
+                    "y": wolf_y - 10,
+                    "timer": 30
+                })
             else:
                 wolf_targeted = False
+
         if event.type == pygame.QUIT:
                 running = False
 
@@ -359,7 +371,7 @@ while running:
     wolf_frame = wolf_animations[wolf_dir][wolf_frame_index]
     screen.blit(wolf_frame, (wolf_screen_x, wolf_screen_y))
     screen.blit(wolf_frame, (wolf_screen_x, wolf_screen_y))
-    draw_name_and_hp(wolf_name, wolf_hp, 100, wolf_screen_x + 24, wolf_screen_y)
+    draw_name_and_hp(wolf_name, wolf_hp, wolf_max_hp, wolf_screen_x + 24, wolf_screen_y)
 
 
     # Dibujar jugador
@@ -369,6 +381,15 @@ while running:
     screen.blit(frame, (WIDTH // 2, HEIGHT // 2))
     screen.blit(frame, (WIDTH // 2, HEIGHT // 2))
     draw_name_and_hp(player_name, player_hp, 100, WIDTH // 2 + 16, HEIGHT // 2)
+
+    for dmg in damage_floats[:]:
+        dmg["y"] -= 1  # subir el número
+        dmg["timer"] -= 1
+        if dmg["timer"] <= 0:
+            damage_floats.remove(dmg)
+        else:
+            dmg_surface = font.render(str(dmg["value"]), True, (255, 0, 0))
+            screen.blit(dmg_surface, (dmg["x"] - offset_x, dmg["y"] - offset_y))
 
 
     pygame.display.flip()
