@@ -20,6 +20,7 @@ wolf_was_moving = False
 
 # Inicializar pygame
 pygame.init()
+font = pygame.font.SysFont("Arial", 14)
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Juego con decorativos naturales")
 clock = pygame.time.Clock()
@@ -115,6 +116,8 @@ player_y = spawn_tile_y * TILE_SIZE
 direction = "down"
 frame_index = 0
 frame_timer = 0
+player_name = "Leyend Ousi"
+player_hp = 100
 
 # Lobo
 wolf_x = 10 * TILE_SIZE
@@ -123,6 +126,8 @@ wolf_dir = random.choice(["up", "down", "left", "right"])
 wolf_state = "idle"
 wolf_idle_timer = 0
 wolf_timer = 0
+wolf_name = "Wolf"
+wolf_hp = 80
 
 # Colisión
 def is_blocking(tile_value):
@@ -143,6 +148,26 @@ def can_move(new_x, new_y):
             if is_blocking(MAP[tile_y][tile_x]):
                 return False
     return True
+
+
+def draw_name_and_hp(name, hp, max_hp, x, y):
+    # Nombre
+    name_surface = font.render(name, True, (255, 255, 255))
+    name_rect = name_surface.get_rect(center=(x, y - 20))
+    screen.blit(name_surface, name_rect)
+
+    # Barra de vida
+    bar_width = 40
+    bar_height = 6
+    hp_ratio = max(0, min(1, hp / max_hp))
+    hp_fill = int(bar_width * hp_ratio)
+
+    bar_x = x - bar_width // 2
+    bar_y = y - 10
+    pygame.draw.rect(screen, (255, 0, 0), (bar_x, bar_y, bar_width, bar_height))  # fondo rojo
+    pygame.draw.rect(screen, (0, 255, 0), (bar_x, bar_y, hp_fill, bar_height))   # vida verde
+    pygame.draw.rect(screen, (0, 0, 0), (bar_x, bar_y, bar_width, bar_height), 1)  # borde negro
+
 
 # Loop principal
 running = True
@@ -317,12 +342,18 @@ while running:
     wolf_screen_y = wolf_y - offset_y
     wolf_frame = wolf_animations[wolf_dir][wolf_frame_index]
     screen.blit(wolf_frame, (wolf_screen_x, wolf_screen_y))
+    screen.blit(wolf_frame, (wolf_screen_x, wolf_screen_y))
+    draw_name_and_hp(wolf_name, wolf_hp, 100, wolf_screen_x + 24, wolf_screen_y)
+
 
     # Dibujar jugador
     frame = animations[direction][frame_index]
     if direction == "right":
         frame = pygame.transform.flip(frame, True, False)
     screen.blit(frame, (WIDTH // 2, HEIGHT // 2))
+    screen.blit(frame, (WIDTH // 2, HEIGHT // 2))
+    draw_name_and_hp(player_name, player_hp, 100, WIDTH // 2 + 16, HEIGHT // 2)
+
 
     pygame.display.flip()
     clock.tick(60)
