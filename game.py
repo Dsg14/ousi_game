@@ -8,7 +8,11 @@ TILE_SIZE = 32
 PLAYER_SPEED = 4
 WOLF_SPEED = 2
 FRAME_SPEED = 8
-WOLF_MOVE_INTERVAL = 60  # frames entre decisiones
+WOLF_MOVE_INTERVAL = 60
+WOLF_IDLE_DURATION = 90
+WOLF_DETECTION_RADIUS = 5 * TILE_SIZE
+wolf_chase_timer = 0
+WOLF_CHASE_DIRECTION_DURATION = 30  # frames antes de cambiar dirección
 
 # Inicializar pygame
 pygame.init()
@@ -45,7 +49,7 @@ animations = {
 
 # Extraer frames del lobo
 def get_wolf_frames(sheet):
-    frame_w = 48  # o prueba con 62 si hay solapamiento
+    frame_w = 48
     frame_h = 48
     return {
         "up":    [sheet.subsurface((i * frame_w, 3 * frame_h, frame_w, frame_h)) for i in range(3)],
@@ -58,7 +62,7 @@ wolf_animations = get_wolf_frames(wolf_sheet)
 wolf_frame_index = 0
 wolf_frame_timer = 0
 
-# Extraer decorativos desde nature_sheet
+# Extraer decorativos
 def get_tile(sheet, col, row, size=32):
     x = col * size
     y = row * size
@@ -67,13 +71,13 @@ def get_tile(sheet, col, row, size=32):
     return tile
 
 decorativos = {
-    0: get_tile(nature_sheet, 7, 4),  # roca gris
-    2: get_tile(nature_sheet, 7, 5),  # coral rojo
-    3: get_tile(nature_sheet, 7, 6),  # coral naranja
-    4: get_tile(nature_sheet, 3, 3),  # coral púrpura
+    0: get_tile(nature_sheet, 7, 4),
+    2: get_tile(nature_sheet, 7, 5),
+    3: get_tile(nature_sheet, 7, 6),
+    4: get_tile(nature_sheet, 3, 3),
 }
 
-# Generar mapa aleatorio
+# Generar mapa
 def generate_map(width, height):
     map_data = []
     for y in range(height):
@@ -95,23 +99,25 @@ def generate_map(width, height):
 
 MAP = generate_map(20, 15)
 
-# Forzar zona libre en el centro
+# Zona libre central
 spawn_tile_x, spawn_tile_y = 8, 6
 for dy in range(-1, 2):
     for dx in range(-1, 2):
         MAP[spawn_tile_y + dy][spawn_tile_x + dx] = 1
 
-# Posición inicial del jugador
+# Jugador
 player_x = spawn_tile_x * TILE_SIZE
 player_y = spawn_tile_y * TILE_SIZE
 direction = "down"
 frame_index = 0
 frame_timer = 0
 
-# Posición inicial del lobo
+# Lobo
 wolf_x = 10 * TILE_SIZE
 wolf_y = 7 * TILE_SIZE
 wolf_dir = random.choice(["up", "down", "left", "right"])
+wolf_state = "idle"
+wolf_idle_timer = 0
 wolf_timer = 0
 
 # Colisión
@@ -174,24 +180,91 @@ while running:
     else:
         frame_index = 1
 
-    # Movimiento aleatorio del lobo
-    wolf_timer += 1
-    if wolf_timer >= WOLF_MOVE_INTERVAL:
-        wolf_dir = random.choice(["up", "down", "left", "right"])
-        wolf_timer = 0
+    # Comportamiento del lobo
+    dx = player_x - wolf_x
+    dy = player_y - wolf_y
+    distance = (dx ** 2 + dy ** 2) ** 0.5
+
+    if distance < WOLF_DETECTION_RADIUS:
+        wolf_state = "chasing"
+    else:
+        if wolf_state == "chasing":
+            wolf_state = "idle"
+            wolf_idle_timer = 0
 
     wolf_new_x, wolf_new_y = wolf_x, wolf_y
-    if wolf_dir == "left":
-        wolf_new_x -= WOLF_SPEED
-    elif wolf_dir == "right":
-        wolf_new_x += WOLF_SPEED
-    elif wolf_dir == "up":
-        wolf_new_y -= WOLF_SPEED
-    elif wolf_dir == "down":
-        wolf_new_y += WOLF_SPEED
 
-    if can_move(wolf_new_x, wolf_new_y):
-        wolf_x, wolf_y = wolf_new_x, wolf_new_y
+    if wolf_state == "idle":
+        wolf_idle_timer += 1
+        if wolf_idle_timer >= WOLF_IDLE_DURATION:
+            wolf_state = "patrolling"
+            wolf_dir = random.choice(["up", "down", "left", "right"])
+            wolf_idle_timer = 0
+
+    elif wolf_state == "patrolling":
+        wolf_timer += 1
+        if wolf_timer >= WOLF_MOVE_INTERVAL:
+            wolf_dir = random.choice(["up", "down", "left", "right"])
+            wolf_timer = 0
+
+        if wolf_dir == "left":
+            wolf_new_x -= WOLF_SPEED
+        elif wolf_dir == "right":
+            wolf_new_x += WOLF_SPEED
+        elif wolf_dir == "up":
+            wolf_new_y -= WOLF_SPEED
+        elif wolf_dir == "down":
+            wolf_new_y += WOLF_SPEED
+
+    elif wolf_state == "chasing":
+        wolf_chase_timer += 1
+
+        # Si está muy cerca, rodear con dirección persistente
+        if distance < TILE_SIZE * 2:
+            if wolf_chase_timer >= WOLF_CHASE_DIRECTION_DURATION:
+                directions = ["up", "down", "left", "right"]
+                random.shuffle(directions)
+                for dir in directions:
+                    temp_x, temp_y = wolf_x, wolf_y
+                    if dir == "left":
+                        temp_x -= WOLF_SPEED
+                    elif dir == "right":
+                        temp_x += WOLF_SPEED
+                    elif dir == "up":
+                        temp_y -= WOLF_SPEED
+                    elif dir == "down":
+                        temp_y += WOLF_SPEED
+
+                    if can_move(temp_x, temp_y):
+                        wolf_x, wolf_y = temp_x, temp_y
+                        wolf_dir = dir
+                        wolf_chase_timer = 0
+                        break
+        else:
+            # Perseguir al jugador con prioridad direccional
+            directions = []
+            if abs(dx) > abs(dy):
+                directions = ["right" if dx > 0 else "left", "down" if dy > 0 else "up"]
+            else:
+                directions = ["down" if dy > 0 else "up", "right" if dx > 0 else "left"]
+
+            for dir in directions:
+                temp_x, temp_y = wolf_x, wolf_y
+                if dir == "left":
+                    temp_x -= WOLF_SPEED
+                elif dir == "right":
+                    temp_x += WOLF_SPEED
+                elif dir == "up":
+                    temp_y -= WOLF_SPEED
+                elif dir == "down":
+                    temp_y += WOLF_SPEED
+
+                if can_move(temp_x, temp_y):
+                    wolf_x, wolf_y = temp_x, temp_y
+                    wolf_dir = dir
+                    wolf_chase_timer = 0
+                    break
+
 
     # Animación del lobo
     wolf_frame_timer += 1
