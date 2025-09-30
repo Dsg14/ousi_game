@@ -17,6 +17,8 @@ wolf_rodeo_timer = 0
 WOLF_RODEO_WAIT = 30  # frames de pausa entre movimientos aleatorios
 wolf_rodeo_dir = None
 wolf_was_moving = False
+wolf_targeted = False
+
 
 # Inicializar pygame
 pygame.init()
@@ -173,8 +175,18 @@ def draw_name_and_hp(name, hp, max_hp, x, y):
 running = True
 while running:
     for event in pygame.event.get():
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:  # botón derecho
+            mouse_x, mouse_y = event.pos
+            world_x = mouse_x + offset_x
+            world_y = mouse_y + offset_y
+
+            wolf_rect = pygame.Rect(wolf_x, wolf_y, TILE_SIZE, TILE_SIZE)
+            if wolf_rect.collidepoint(world_x, world_y):
+                wolf_targeted = True
+            else:
+                wolf_targeted = False
         if event.type == pygame.QUIT:
-            running = False
+                running = False
 
     keys = pygame.key.get_pressed()
     new_x, new_y = player_x, player_y
@@ -340,6 +352,10 @@ while running:
     # Dibujar lobo animado
     wolf_screen_x = wolf_x - offset_x
     wolf_screen_y = wolf_y - offset_y
+    if wolf_targeted:
+        outline_rect = pygame.Rect(wolf_screen_x, wolf_screen_y, TILE_SIZE, TILE_SIZE)
+        pygame.draw.rect(screen, (255, 0, 0), outline_rect, 2)
+
     wolf_frame = wolf_animations[wolf_dir][wolf_frame_index]
     screen.blit(wolf_frame, (wolf_screen_x, wolf_screen_y))
     screen.blit(wolf_frame, (wolf_screen_x, wolf_screen_y))
