@@ -13,6 +13,10 @@ WOLF_IDLE_DURATION = 90
 WOLF_DETECTION_RADIUS = 5 * TILE_SIZE
 wolf_chase_timer = 0
 WOLF_CHASE_DIRECTION_DURATION = 30  # frames antes de cambiar dirección
+wolf_rodeo_timer = 0
+WOLF_RODEO_WAIT = 30  # frames de pausa entre movimientos aleatorios
+wolf_rodeo_dir = None
+wolf_was_moving = False
 
 # Inicializar pygame
 pygame.init()
@@ -217,12 +221,24 @@ while running:
             wolf_new_y += WOLF_SPEED
 
     elif wolf_state == "chasing":
-        wolf_chase_timer += 1
+        dx = player_x - wolf_x
+        dy = player_y - wolf_y
+        distance = (dx ** 2 + dy ** 2) ** 0.5
 
-        # Si está muy cerca, rodear con dirección persistente
+        # Si está muy cerca, rodear con pausas
         if distance < TILE_SIZE * 2:
-            if wolf_chase_timer >= WOLF_CHASE_DIRECTION_DURATION:
-                directions = ["up", "down", "left", "right"]
+            wolf_rodeo_timer += 1
+            if wolf_rodeo_timer >= WOLF_RODEO_WAIT:
+                directions = []
+                if dx > 0:
+                    directions.append("right")
+                elif dx < 0:
+                    directions.append("left")
+                if dy > 0:
+                    directions.append("down")
+                elif dy < 0:
+                    directions.append("up")
+
                 random.shuffle(directions)
                 for dir in directions:
                     temp_x, temp_y = wolf_x, wolf_y
@@ -238,10 +254,10 @@ while running:
                     if can_move(temp_x, temp_y):
                         wolf_x, wolf_y = temp_x, temp_y
                         wolf_dir = dir
-                        wolf_chase_timer = 0
+                        wolf_rodeo_timer = 0
                         break
         else:
-            # Perseguir al jugador con prioridad direccional
+            # Perseguir al jugador normalmente
             directions = []
             if abs(dx) > abs(dy):
                 directions = ["right" if dx > 0 else "left", "down" if dy > 0 else "up"]
@@ -262,15 +278,24 @@ while running:
                 if can_move(temp_x, temp_y):
                     wolf_x, wolf_y = temp_x, temp_y
                     wolf_dir = dir
-                    wolf_chase_timer = 0
+                    wolf_rodeo_timer = 0
                     break
 
+ 
 
     # Animación del lobo
-    wolf_frame_timer += 1
-    if wolf_frame_timer >= FRAME_SPEED:
-        wolf_frame_index = (wolf_frame_index + 1) % len(wolf_animations[wolf_dir])
-        wolf_frame_timer = 0
+    if (wolf_x != wolf_new_x) or (wolf_y != wolf_new_y):
+        wolf_frame_timer += 1
+        if wolf_frame_timer >= FRAME_SPEED:
+            wolf_frame_index = (wolf_frame_index + 1) % len(wolf_animations[wolf_dir])
+            wolf_frame_timer = 0
+    else:
+        wolf_frame_index = 1  # frame estático si no se movió
+
+    # Actualizar posición si se movió
+    if can_move(wolf_new_x, wolf_new_y):
+        wolf_x, wolf_y = wolf_new_x, wolf_new_y
+
 
     # Scroll centrado
     offset_x = player_x - WIDTH // 2
