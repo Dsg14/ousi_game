@@ -3,19 +3,18 @@ import csv
 
 # ---------------- Configuración ----------------
 WIDTH, HEIGHT = 640, 480
-TILE_SIZE = 16
-SCALE = 2
-MAP_CSV = r"C:\Users\David SG\Desktop\David\ousi_game\mapaok..csv"
-TILESET_PNG = r"C:\Users\David SG\Desktop\David\ousi_game\assets\tiles\ohmydungeon_v1.1.png"
+TILE_SIZE = 32  # tamaño real del tileset
+MAP_CSV = r"C:\Users\David SG\Desktop\David\ousi_game\mapaokv2.csv"
+TILESET_PNG = r"C:\Users\David SG\Desktop\David\ousi_game\assets\tiles\TXTilesetGrass.png"
 PLAYER_SHEET = r"C:\Users\David SG\Desktop\David\ousi_game\assets\player\animation_sheet.png"
 
 # IDs transitables (suelo)
-WALKABLE = {14, 22}
+WALKABLE = {0, 1, 2, 8, 14, 22, 28}
 
 # ---------------- Inicialización ----------------
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Mapa tile-based")
+pygame.display.set_caption("Mapa tile-based 32x32")
 clock = pygame.time.Clock()
 
 # ---------------- Cargar CSV ----------------
@@ -56,7 +55,7 @@ animations = {
 }
 
 # ---------------- Player ----------------
-player_tile_x, player_tile_y = 5, 5  # posición inicial en tiles
+player_tile_x, player_tile_y = 1, 1  # posición inicial en tiles
 direction = "down"
 frame_index, frame_timer = 0, 0
 FRAME_SPEED = 8
@@ -65,7 +64,7 @@ FRAME_SPEED = 8
 moving = False
 move_dx, move_dy = 0, 0
 pixels_moved = 0
-STEP_PIXELS = TILE_SIZE * SCALE // 4  # velocidad dentro de un tile
+STEP_PIXELS = TILE_SIZE // 4  # velocidad dentro de un tile
 
 def can_walk(tile_x, tile_y):
     """True si el tile es caminable"""
@@ -105,11 +104,11 @@ while running:
                 move_dx, move_dy = 0, STEP_PIXELS
 
         if moving:
-            pixels_moved = 0  # empezar nuevo paso
+            pixels_moved = 0
 
     if moving:
         pixels_moved += abs(move_dx) + abs(move_dy)
-        if pixels_moved >= TILE_SIZE * SCALE:  # terminó de recorrer un tile
+        if pixels_moved >= TILE_SIZE:  # terminó de recorrer un tile
             moving = False
             pixels_moved = 0
             player_tile_x += (1 if move_dx > 0 else -1 if move_dx < 0 else 0)
@@ -129,24 +128,17 @@ while running:
     for y in range(MAP_HEIGHT):
         for x in range(MAP_WIDTH):
             tile_id = MAP[y][x]
-            if tile_id >= 0 and tile_id < len(tileset):
-                pos_x = x*TILE_SIZE
-                pos_y = y*TILE_SIZE
-                map_surface.blit(tileset[tile_id], (pos_x, pos_y))
-
-    zoomed_map = pygame.transform.scale(
-        map_surface,
-        (MAP_WIDTH*TILE_SIZE*SCALE, MAP_HEIGHT*TILE_SIZE*SCALE)
-    )
+            if 0 <= tile_id < len(tileset):
+                map_surface.blit(tileset[tile_id], (x*TILE_SIZE, y*TILE_SIZE))
 
     # Posición del player en píxeles
-    player_px = player_tile_x * TILE_SIZE * SCALE + (pixels_moved if move_dx != 0 else 0) * (1 if move_dx > 0 else -1 if move_dx < 0 else 0)
-    player_py = player_tile_y * TILE_SIZE * SCALE + (pixels_moved if move_dy != 0 else 0) * (1 if move_dy > 0 else -1 if move_dy < 0 else 0)
+    player_px = player_tile_x * TILE_SIZE + (pixels_moved if move_dx != 0 else 0) * (1 if move_dx > 0 else -1 if move_dx < 0 else 0)
+    player_py = player_tile_y * TILE_SIZE + (pixels_moved if move_dy != 0 else 0) * (1 if move_dy > 0 else -1 if move_dy < 0 else 0)
 
     offset_x = player_px - WIDTH//2
     offset_y = player_py - HEIGHT//2
     screen.fill((0,0,0))
-    screen.blit(zoomed_map, (-offset_x, -offset_y))
+    screen.blit(map_surface, (-offset_x, -offset_y))
 
     frame = animations[direction][frame_index]
     screen.blit(frame, (WIDTH//2, HEIGHT//2))
